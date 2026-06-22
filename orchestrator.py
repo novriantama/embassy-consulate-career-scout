@@ -2,70 +2,179 @@ import asyncio
 import os
 import sys
 from google.antigravity import Agent
-from tools import read_user_resume, search_embassy_portals
+from tools import (
+    read_user_resume, 
+    search_active_postings, 
+    send_local_alert, 
+    send_notification_email, 
+    save_application_log
+)
 from config import monitor_config, matcher_config, drafter_config
 
-async def run_scout(search_keyword: str, resume_path: str):
-    print("🚀 Triggering Diplomatic Career Scout...")
-
-    # Step 0: Search for the correct embassy career page
-    print(f"\n🔍 Step 0: Searching for portals matching keyword: '{search_keyword}'...")
-    portals = search_embassy_portals(search_keyword)
-    if not portals or "Search error" in portals[0]:
-        print(f"❌ Failed to find embassy portals or search was blocked: {portals}")
-        print("💡 Outgoing network might be disabled or connection refused. Falling back to default URL: https://kemlu.go.id/singapore/id/pages/karir")
-        target_url = "https://kemlu.go.id/singapore/id/pages/karir"
-    else:
-        target_url = portals[0]
-        
-    print(f"📌 Target Portal URL: {target_url}")
-
-    # Step 1: Monitor Agent checks the portal
-    print("\n🔍 Step 1: Spawning Monitor Agent to check portal...")
+async def scan_single_portal(url: str, resume_path: str):
+    """Scans and evaluates a single embassy job portal URL.
+    """
+    print(f"\n==================================================")
+    print(f"🔎 Scanning Portal: {url}")
+    print(f"==================================================")
+    
+    # Step 1: Monitor Agent gathers job details
+    print("🤖 Spawning Monitor Agent to extract job posting details...")
     async with Agent(config=monitor_config) as monitor_agent:
-        response = await monitor_agent.chat(f"Scrape and check this portal: {target_url}")
+        response = await monitor_agent.chat(f"Scrape and extract job details from this page: {url}")
         job_details = await response.structured_output()
-    
-    if not job_details or not job_details.get("is_embassy_local_staff"):
-        print("❌ No 'Local Staff' openings found on the portal. Terminating workflow.")
-        return
-
-    print(f"✅ Found local staff job: {job_details['job_title']} (Deadline: {job_details['application_deadline']})")
-
-    # Step 2: Matcher Agent reads resume and job requirements
-    print("\n📊 Step 2: Spawning Matcher Agent to compare with resume...")
-    
-    if not os.path.exists(resume_path):
-        print(f"⚠️ Resume not found at {resume_path}. Please create a sample resume first.")
+        
+    if not job_details:
+        print("⚠️ Could not extract details or page structure is unreadable.")
         return
         
+    embassy_name = job_details.get("embassy_name", "Unknown Embassy")
+    job_title = job_details.get("job_title", "Unknown Position")
+    
+    if not job_details.get("is_embassy_local_staff"):
+        print(f"ℹ️ [{embassy_name}] Opening found for '{job_title}', but it is not a 'Local Staff' position. Skipping.")
+        return
+        
+    print(f"✅ Active Local Staff job found!")
+    print(f"   Embassy:  {embassy_name}")
+    print(f"   Position: {job_title}")
+    print(f"   Deadline: {job_details.get('application_deadline', 'Not specified')}")
+    print(f"   Email:    {job_details.get('contact_email', 'None found')}")
+
+    # Read candidate resume
     resume_text = read_user_resume(resume_path)
     
+    # Step 2: Matcher Agent evaluates candidates against requirements
+    print("\n🤖 Spawning Matcher Agent to assess candidate fit...")
     async with Agent(config=matcher_config) as matcher_agent:
         response = await matcher_agent.chat(
-            f"Job requirements: {job_details['requirements']}\n\n"
-            f"User Resume:\n{resume_text}"
+            f"Compare this resume against the job requirements.\n\n"
+            f"Job Requirements: {job_details.get('requirements', [])}\n\n"
+            f"Candidate Resume:\n{resume_text}"
         )
         match_results = await response.structured_output()
-
-    print(f"ℹ️ Fit Score: {match_results['fit_score']}/100")
-    print(f"ℹ️ Strengths: {', '.join(match_results['matching_strengths'])}")
-
-    # Step 3: Drafter Agent drafts and saves the email
-    print("\n✍️ Step 3: Spawning Drafter Agent to write application email...")
-    async with Agent(config=drafter_config) as drafter_agent:
-        response = await drafter_agent.chat(
-            f"Draft a diplomatic application email for the '{job_details['job_title']}' position.\n"
-            f"Emphasize these 3 key strengths: {match_results['matching_strengths']}.\n"
-            f"Ensure to save the output."
-        )
-        final_draft = await response.structured_output()
         
-    print(f"\n🎉 Workflow complete! {final_draft['save_status']}")
+    if not match_results:
+        print("⚠️ Matcher agent failed to produce structured outputs.")
+        return
+        
+    fit_score = match_results.get("fit_score", 0)
+    strengths = match_results.get("matching_strengths", [])
+    print(f"📊 Candidate Fit Assessment:")
+    print(f"   Fit Score: {fit_score}/100")
+    print(f"   Strengths: {', '.join(strengths)}")
+    
+    # Check suitability threshold
+    threshold = int(os.getenv("AUTO_APPLY_THRESHOLD", "85"))
+    auto_apply_enabled = os.getenv("AUTO_APPLY_ENABLED", "False").lower() == "true"
+    
+    if fit_score >= threshold:
+        print(f"🌟 Suitable Match Found! (Fit score {fit_score}% >= threshold {threshold}%)")
+        
+        # Step 3: Drafter Agent drafts formal diplomatic cover letter
+        print("🤖 Spawning Drafter Agent to write application email...")
+        async with Agent(config=drafter_config) as drafter_agent:
+            response = await drafter_agent.chat(
+                f"Write a formal diplomatic application for the position of '{job_title}' "
+                f"at '{embassy_name}'. The candidate has these key strengths: {strengths}."
+            )
+            email_draft = await response.structured_output()
+            
+        if not email_draft:
+            print("⚠️ Drafter agent failed to draft cover email.")
+            return
+            
+        subject = email_draft.get("email_subject", f"Job Application: {job_title}")
+        body = email_draft.get("email_body", "")
+        
+        # 1. Trigger Native Mac OS Notification Banner
+        alert_msg = f"Found a suitable role: {job_title} at {embassy_name} ({fit_score}% match)!"
+        send_local_alert("Diplomatic Career Scout", alert_msg)
+        
+        # 2. Save a draft copy to user's desktop
+        desktop_save_path = os.path.expanduser(f"~/Desktop/draft_email_{embassy_name.replace(' ', '_')}.txt")
+        try:
+            with open(desktop_save_path, "w", encoding="utf-8") as f:
+                f.write(f"Subject: {subject}\nRecipient: {job_details.get('contact_email', 'N/A')}\n\n{body}")
+            print(f"💾 Draft application letter saved to Desktop: {desktop_save_path}")
+        except Exception as e:
+            print(f"⚠️ Could not write draft to Desktop: {str(e)}")
+
+        # 3. Send Notification Email to user
+        notification_body = (
+            f"Hello,\n\n"
+            f"The Diplomatic Career Scout found a suitable job posting:\n"
+            f"Embassy: {embassy_name}\n"
+            f"Position: {job_title}\n"
+            f"Fit Score: {fit_score}/100\n"
+            f"Match Strengths: {', '.join(strengths)}\n\n"
+            f"A draft email has been prepared and saved to your Desktop.\n"
+            f"Link to listing: {url}"
+        )
+        print("✉️ Sending alert notification email to you...")
+        send_notification_email(
+            subject=f"[Scout Match] {job_title} at {embassy_name}",
+            body=notification_body
+        )
+        
+        # 4. Handle Automatic Resume Submission
+        contact_email = job_details.get("contact_email")
+        if auto_apply_enabled:
+            if contact_email:
+                print(f"🚀 Auto-Apply is Enabled! Sending application resume to {contact_email}...")
+                send_result = send_notification_email(
+                    subject=subject,
+                    body=body,
+                    recipient=contact_email,
+                    attachment_path=resume_path
+                )
+                print(f"📬 Application status: {send_result}")
+                save_application_log(job_title, embassy_name, f"Auto-applied: {send_result}", fit_score, url)
+            else:
+                print("⚠️ Auto-apply enabled, but no application email address was found on the page.")
+                save_application_log(job_title, embassy_name, "Matched (Auto-apply skipped: no email)", fit_score, url)
+        else:
+            print("ℹ️ Auto-apply is disabled in .env. Skipping submission step.")
+            save_application_log(job_title, embassy_name, "Matched (Draft saved)", fit_score, url)
+            
+    else:
+        print(f"❌ Candidate fit score ({fit_score}%) is below suitability threshold ({threshold}%). Skipping.")
+        save_application_log(job_title, embassy_name, "Scanned (Below threshold)", fit_score, url)
+
+async def main():
+    print("==================================================")
+    print("🚀 Starting Global Diplomatic Career Scout scans...")
+    print("==================================================")
+    
+    search_keyword = sys.argv[1] if len(sys.argv) > 1 else "staf setempat"
+    resume_path = sys.argv[2] if len(sys.argv) > 2 else "resume.txt"
+    
+    if not os.path.exists(resume_path):
+        print(f"❌ Resume file not found at: {resume_path}")
+        print("   Please create a resume or place it in the working directory.")
+        return
+        
+    # Step 0: Search for active career portals globally
+    print(f"🔍 Searching for Indonesian embassy portals with keyword: '{search_keyword}'...")
+    portals = search_active_postings(search_keyword)
+    
+    # Handling sandboxed environment constraints
+    if not portals or "Search error" in portals[0]:
+        print(f"⚠️ Search failed or was blocked by sandbox network policy: {portals}")
+        print("💡 Falling back to pre-configured test URL...")
+        portals = ["https://kemlu.go.id/singapore/id/pages/karir"]
+        
+    print(f"📌 Discovered {len(portals)} candidate portal URLs to scan.")
+    
+    for url in portals:
+        try:
+            await scan_single_portal(url, resume_path)
+        except Exception as e:
+            print(f"💥 Critical error scanning portal {url}: {str(e)}")
+            
+    print("\n==================================================")
+    print("🏁 Scout Scanning Completed. Logs saved to applications_log.json.")
+    print("==================================================")
 
 if __name__ == "__main__":
-    keyword = sys.argv[1] if len(sys.argv) > 1 else "KBRI Singapore local staff karir"
-    resume = sys.argv[2] if len(sys.argv) > 2 else "resume.txt"
-    
-    # Run the async pipeline
-    asyncio.run(run_scout(keyword, resume))
+    asyncio.run(main())
