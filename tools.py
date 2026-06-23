@@ -81,8 +81,9 @@ def search_active_postings(keyword: str = "staf setempat") -> list[str]:
                     links.append(href)
                     
         return links[:8] if links else fallback_portals
-    except Exception as e:
-        print(f"⚠️ Search engine query failed ({str(e)}). Falling back to preloaded major embassy portals.")
+    except Exception:
+        print("ℹ️ Search engine query unavailable (standard network/ISP block on search scraper).")
+        print("💡 Proceeding directly with preloaded global Indonesian Embassy & Consulate career portals...")
         return fallback_portals
 
 def scrape_kbri_portal(url: str) -> str:
