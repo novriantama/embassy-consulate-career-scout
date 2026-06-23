@@ -33,7 +33,7 @@ def search_active_postings(keyword: str = "staf setempat") -> list[str]:
         # Search specifically under kemlu.go.id domain for maximum relevance
         query = f"site:kemlu.go.id {keyword}"
         encoded_query = urllib.parse.quote_plus(query)
-        url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+        url = f"https://html.duckduckgo.com/html/?q={encoded_query}&df=m"
         
         req = urllib.request.Request(
             url, 

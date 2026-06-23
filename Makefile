@@ -20,7 +20,7 @@ install:
 	pip install google-antigravity pydantic beautifulsoup4 pypdf
 
 run:
-	python3 orchestrator.py $(KEYWORD) $(RESUME)
+	python3 orchestrator.py "$(KEYWORD)" "$(RESUME)"
 
 clean: smtp-down
 	rm -rf __pycache__

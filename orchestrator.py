@@ -44,6 +44,10 @@ async def scan_single_portal(url: str, resume_path: str):
     # Read candidate resume
     resume_text = read_user_resume(resume_path)
     
+    # Introduce small delay to respect API Rate Limits (Free Tier)
+    print("⏳ Waiting to respect API rate limits...")
+    await asyncio.sleep(4)
+    
     # Step 2: Matcher Agent evaluates candidates against requirements
     print("\n🤖 Spawning Matcher Agent to assess candidate fit...")
     async with Agent(config=matcher_config) as matcher_agent:
@@ -70,6 +74,10 @@ async def scan_single_portal(url: str, resume_path: str):
     
     if fit_score >= threshold:
         print(f"🌟 Suitable Match Found! (Fit score {fit_score}% >= threshold {threshold}%)")
+        
+        # Introduce small delay to respect API Rate Limits (Free Tier)
+        print("⏳ Waiting to respect API rate limits...")
+        await asyncio.sleep(4)
         
         # Step 3: Drafter Agent drafts formal diplomatic cover letter
         print("🤖 Spawning Drafter Agent to write application email...")
@@ -166,8 +174,11 @@ async def main():
         
     print(f"📌 Discovered {len(portals)} candidate portal URLs to scan.")
     
-    for url in portals:
+    for i, url in enumerate(portals):
         try:
+            if i > 0:
+                print("⏳ Waiting to respect API rate limits...")
+                await asyncio.sleep(6)
             await scan_single_portal(url, resume_path)
         except Exception as e:
             print(f"💥 Critical error scanning portal {url}: {str(e)}")
