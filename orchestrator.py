@@ -11,6 +11,29 @@ from tools import (
 )
 from config import monitor_config, matcher_config, drafter_config
 
+async def run_agent_step(config, prompt, step_name):
+    """Runs an agent step with structured output, retrying on 429 Rate Limits at any stage.
+    """
+    delay = 15
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            async with Agent(config=config) as agent:
+                response = await agent.chat(prompt)
+                return await response.structured_output()
+        except Exception as e:
+            err_msg = str(e).lower()
+            if "429" in err_msg or "quota" in err_msg or "resource_exhausted" in err_msg:
+                print(f"⚠️ [Rate Limit 429] hit in {step_name}. Waiting {delay}s before retrying (Attempt {attempt + 1}/{max_retries})...")
+                await asyncio.sleep(delay)
+                delay *= 1.5
+            else:
+                raise e
+    # Final attempt
+    async with Agent(config=config) as agent:
+        response = await agent.chat(prompt)
+        return await response.structured_output()
+
 async def scan_single_portal(url: str, resume_path: str):
     """Scans and evaluates a single embassy job portal URL.
     """
@@ -20,9 +43,11 @@ async def scan_single_portal(url: str, resume_path: str):
     
     # Step 1: Monitor Agent gathers job details
     print("🤖 Spawning Monitor Agent to extract job posting details...")
-    async with Agent(config=monitor_config) as monitor_agent:
-        response = await monitor_agent.chat(f"Scrape and extract job details from this page: {url}")
-        job_details = await response.structured_output()
+    job_details = await run_agent_step(
+        monitor_config, 
+        f"Scrape and extract job details from this page: {url}", 
+        "Monitor Agent"
+    )
         
     if not job_details:
         print("⚠️ Could not extract details or page structure is unreadable.")
@@ -50,13 +75,13 @@ async def scan_single_portal(url: str, resume_path: str):
     
     # Step 2: Matcher Agent evaluates candidates against requirements
     print("\n🤖 Spawning Matcher Agent to assess candidate fit...")
-    async with Agent(config=matcher_config) as matcher_agent:
-        response = await matcher_agent.chat(
-            f"Compare this resume against the job requirements.\n\n"
-            f"Job Requirements: {job_details.get('requirements', [])}\n\n"
-            f"Candidate Resume:\n{resume_text}"
-        )
-        match_results = await response.structured_output()
+    match_results = await run_agent_step(
+        matcher_config,
+        f"Compare this resume against the job requirements.\n\n"
+        f"Job Requirements: {job_details.get('requirements', [])}\n\n"
+        f"Candidate Resume:\n{resume_text}",
+        "Matcher Agent"
+    )
         
     if not match_results:
         print("⚠️ Matcher agent failed to produce structured outputs.")
@@ -81,12 +106,12 @@ async def scan_single_portal(url: str, resume_path: str):
         
         # Step 3: Drafter Agent drafts formal diplomatic cover letter
         print("🤖 Spawning Drafter Agent to write application email...")
-        async with Agent(config=drafter_config) as drafter_agent:
-            response = await drafter_agent.chat(
-                f"Write a formal diplomatic application for the position of '{job_title}' "
-                f"at '{embassy_name}'. The candidate has these key strengths: {strengths}."
-            )
-            email_draft = await response.structured_output()
+        email_draft = await run_agent_step(
+            drafter_config,
+            f"Write a formal diplomatic application for the position of '{job_title}' "
+            f"at '{embassy_name}'. The candidate has these key strengths: {strengths}.",
+            "Drafter Agent"
+        )
             
         if not email_draft:
             print("⚠️ Drafter agent failed to draft cover email.")
@@ -166,10 +191,9 @@ async def main():
     print(f"🔍 Searching for Indonesian embassy portals with keyword: '{search_keyword}'...")
     portals = search_active_postings(search_keyword)
     
-    # Handling sandboxed environment constraints
-    if not portals or "Search error" in portals[0]:
-        print(f"⚠️ Search failed or was blocked by sandbox network policy: {portals}")
-        print("💡 Falling back to pre-configured test URL...")
+    # Handling fallback cases if no portals returned
+    if not portals:
+        print("💡 No portals discovered. Falling back to pre-configured test URL...")
         portals = ["https://kemlu.go.id/singapore/id/pages/karir"]
         
     print(f"📌 Discovered {len(portals)} candidate portal URLs to scan.")

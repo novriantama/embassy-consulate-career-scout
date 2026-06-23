@@ -10,6 +10,14 @@ import os
 import json
 from datetime import datetime
 
+# Bypass system-wide proxy settings which can cause Errno 61 Connection Refused on local Mac environments
+try:
+    proxy_handler = urllib.request.ProxyHandler({})
+    opener = urllib.request.build_opener(proxy_handler)
+    urllib.request.install_opener(opener)
+except Exception:
+    pass
+
 # Helper to load .env variables without external library dependencies
 def load_env_variables():
     if os.path.exists(".env"):
@@ -29,6 +37,16 @@ def search_active_postings(keyword: str = "staf setempat") -> list[str]:
     Args:
         keyword: Search query (e.g. 'staf setempat', 'local staff', 'lowongan').
     """
+    # Preloaded list of major embassy and consulate career portals around the world as fallback
+    fallback_portals = [
+        "https://kemlu.go.id/singapore/id/pages/karir",
+        "https://kemlu.go.id/london/id/pages/karir",
+        "https://kemlu.go.id/washington/id/pages/karir",
+        "https://kemlu.go.id/canberra/id/pages/karir",
+        "https://kemlu.go.id/tokyo/id/pages/karir",
+        "https://kemlu.go.id/kualalumpur/id/pages/karir",
+        "https://kemlu.go.id/sydney/id/pages/karir"
+    ]
     try:
         # Search specifically under kemlu.go.id domain for maximum relevance
         query = f"site:kemlu.go.id {keyword}"
@@ -62,9 +80,10 @@ def search_active_postings(keyword: str = "staf setempat") -> list[str]:
                 if any(term in href.lower() for term in ["/pages/", "/karir", "/career", "/lowongan", "/berita", "/news"]):
                     links.append(href)
                     
-        return links[:8]  # Return top 8 job/career pages
+        return links[:8] if links else fallback_portals
     except Exception as e:
-        return [f"Search error: {str(e)}"]
+        print(f"⚠️ Search engine query failed ({str(e)}). Falling back to preloaded major embassy portals.")
+        return fallback_portals
 
 def scrape_kbri_portal(url: str) -> str:
     """Scrapes raw text content from an Indonesian Embassy (KBRI) career portal URL.

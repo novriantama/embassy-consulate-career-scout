@@ -3,7 +3,9 @@ from tools import scrape_kbri_portal
 from schemas import JobPosting, ResumeMatch, EmailDraft
 
 # 1. The Monitor configures a web scraper tool and returns structured job details including contact email
+# Using gemini-flash-latest (Gemini 1.5 Flash) to bypass the daily 20-request cap on gemini-3.5-flash
 monitor_config = LocalAgentConfig(
+    model="gemini-flash-latest",
     system_instructions=(
         "You are a strict data extraction agent. Use the scrape_kbri_portal tool "
         "on the provided URL. Identify if there is an active 'Local Staff' (Staf Setempat) opening. "
@@ -16,7 +18,9 @@ monitor_config = LocalAgentConfig(
 )
 
 # 2. The Matcher compares job requirements against a resume and returns suitability scores
+# Using gemini-flash-latest (Gemini 1.5 Flash)
 matcher_config = LocalAgentConfig(
+    model="gemini-flash-latest",
     system_instructions=(
         "You are an expert HR Analyst specialized in embassy recruitment. Compare the job requirements "
         "against the user's resume text. Determine the fit score (0-100), extract exactly 3 matching strengths, "
@@ -26,7 +30,9 @@ matcher_config = LocalAgentConfig(
 )
 
 # 3. The Drafter drafts a highly formal diplomatic application cover email
+# Using gemini-flash-latest (Gemini 1.5 Flash)
 drafter_config = LocalAgentConfig(
+    model="gemini-flash-latest",
     system_instructions=(
         "You write highly formal, diplomatic cover emails for Indonesian embassy job applications. "
         "Use the job details (title, embassy name) and the candidate's 3 key strengths to draft a compelling "
