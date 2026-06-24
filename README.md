@@ -69,10 +69,9 @@ AUTO_APPLY_THRESHOLD=85
 
 ### 1. Prerequisite Setup
 
-Make sure you have an OpenAI-compatible API running. If you are running Qwen locally via Ollama:
+Make sure you have an OpenAI-compatible API running. If you are running Qwen locally via Ollama, you can automatically install Ollama (via Homebrew) and pull Qwen 2.5 using:
 ```bash
-# Start Ollama service on your Mac, then pull Qwen 2.5
-ollama pull qwen2.5
+make ollama-install
 ```
 
 If you prefer testing emails locally, you can spin up Mailpit using Docker:
@@ -105,7 +104,7 @@ Place your PDF or text resume in the root directory (or update [resume.txt](file
 
 * **Run with a custom resume PDF:**
   ```bash
-  make run KEYWORD="staf setempat" RESUME="Resume-M Hafidz Novriantama.pdf"
+  make run KEYWORD="staf setempat" RESUME="resume.pdf"
   ```
 
 ---
