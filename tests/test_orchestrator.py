@@ -85,5 +85,73 @@ class TestQwenOrchestrator(unittest.IsolatedAsyncioTestCase):
         # Verify fallback triggers create
         mock_client.chat.completions.create.assert_called_once()
 
+    @patch("urllib.request.urlopen")
+    def test_scrape_instagram_post_with_session(self, mock_urlopen):
+        import json
+        import os
+        # Mock HTTP response containing Instagram items JSON
+        mock_json = {
+            "items": [
+                {
+                    "caption": {
+                        "text": "Lowongan Kerja Staf Setempat di KBRI Singapura. Persyaratan..."
+                    }
+                }
+            ]
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_json).encode('utf-8')
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+        
+        from src.tools.scraper import scrape_kbri_portal
+        
+        with patch.dict(os.environ, {"INSTAGRAM_SESSION_ID": "mock-session-123"}):
+            result = scrape_kbri_portal("https://www.instagram.com/p/C8o7U4hSa4Q/")
+            
+        self.assertIn("Lowongan Kerja Staf Setempat", result)
+        self.assertIn("Instagram Post (C8o7U4hSa4Q) Caption", result)
+
+    @patch("urllib.request.urlopen")
+    def test_scrape_instagram_profile_with_session(self, mock_urlopen):
+        import json
+        import os
+        # Mock HTTP response containing Instagram profile JSON
+        mock_json = {
+            "data": {
+                "user": {
+                    "full_name": "KBRI Singapura",
+                    "edge_owner_to_timeline_media": {
+                        "edges": [
+                            {
+                                "node": {
+                                    "shortcode": "C8o7U4hSa4Q",
+                                    "edge_media_to_caption": {
+                                        "edges": [
+                                            {
+                                                "node": {
+                                                    "text": "Open Recruitment KBRI Singapura"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_json).encode('utf-8')
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+        
+        from src.tools.scraper import scrape_kbri_portal
+        
+        with patch.dict(os.environ, {"INSTAGRAM_SESSION_ID": "mock-session-123"}):
+            result = scrape_kbri_portal("https://www.instagram.com/kbri.singapura/")
+            
+        self.assertIn("Open Recruitment KBRI Singapura", result)
+        self.assertIn("Instagram Profile: @kbri.singapura", result)
+
 if __name__ == "__main__":
     unittest.main()
