@@ -1,7 +1,7 @@
 .PHONY: help install run clean smtp-build smtp-up smtp-down smtp-logs
 
 # Default keyword and resume parameters (can be overridden on command line)
-KEYWORD ?= "KBRI Singapore local staff karir"
+KEYWORD ?= KBRI Singapore local staff karir
 RESUME ?= resume.txt
 
 help:
@@ -17,7 +17,7 @@ help:
 	@echo "  make smtp-logs    - Show running logs of the mock SMTP server"
 
 install:
-	pip install google-antigravity pydantic beautifulsoup4 pypdf
+	pip install pydantic beautifulsoup4 pypdf openai python-dotenv
 
 run:
 	python3 orchestrator.py "$(KEYWORD)" "$(RESUME)"

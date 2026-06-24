@@ -1,38 +1,84 @@
 import asyncio
 import os
 import sys
-from google.antigravity import Agent
+import json
+from openai import AsyncOpenAI
 from tools import (
     read_user_resume, 
     search_active_postings, 
     send_local_alert, 
     send_notification_email, 
-    save_application_log
+    save_application_log,
+    scrape_kbri_portal
 )
 from config import monitor_config, matcher_config, drafter_config
 
+# Initialize the OpenAI compatible client
+api_key = os.getenv("LLM_API_KEY", "ollama")
+base_url = os.getenv("LLM_BASE_URL", "http://localhost:11434/v1")
+model_name = os.getenv("LLM_MODEL", "qwen2.5")
+
+client = AsyncOpenAI(
+    api_key=api_key,
+    base_url=base_url
+)
+
 async def run_agent_step(config, prompt, step_name):
-    """Runs an agent step with structured output, retrying on 429 Rate Limits at any stage.
+    """Runs an agent step with structured output using Qwen via OpenAI compatible API.
+    Retries on rate limits or API connection errors.
     """
-    delay = 15
+    system_instructions = config["system_instructions"]
+    response_schema = config["response_schema"]
+    
+    delay = 5
     max_retries = 3
-    for attempt in range(max_retries):
+    
+    for attempt in range(max_retries + 1):
         try:
-            async with Agent(config=config) as agent:
-                response = await agent.chat(prompt)
-                return await response.structured_output()
+            try:
+                # Try OpenAI structured outputs first (Beta parse endpoint)
+                response = await client.beta.chat.completions.parse(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_instructions},
+                        {"role": "user", "content": prompt}
+                    ],
+                    response_format=response_schema
+                )
+                parsed = response.choices[0].message.parsed
+                if parsed is not None:
+                    return parsed.model_dump()
+            except Exception as parse_err:
+                # Fallback to standard json_object with manual validation
+                schema_json = json.dumps(response_schema.model_json_schema(), indent=2)
+                fallback_system = (
+                    f"{system_instructions}\n\n"
+                    f"CRITICAL: You must return a JSON object conforming exactly to this JSON schema:\n"
+                    f"{schema_json}"
+                )
+                response = await client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": fallback_system},
+                        {"role": "user", "content": prompt}
+                    ],
+                    response_format={"type": "json_object"}
+                )
+                content = response.choices[0].message.content
+                parsed_json = json.loads(content)
+                validated = response_schema.model_validate(parsed_json)
+                return validated.model_dump()
+                
         except Exception as e:
             err_msg = str(e).lower()
-            if "429" in err_msg or "quota" in err_msg or "resource_exhausted" in err_msg:
-                print(f"⚠️ [Rate Limit 429] hit in {step_name}. Waiting {delay}s before retrying (Attempt {attempt + 1}/{max_retries})...")
+            is_retryable = any(code in err_msg for code in ["429", "503", "quota", "rate limit", "resource_exhausted"])
+            if is_retryable and attempt < max_retries:
+                print(f"⚠️ [LLM Error] hit in {step_name}: {str(e)}. Waiting {delay}s before retrying (Attempt {attempt + 1}/{max_retries})...")
                 await asyncio.sleep(delay)
                 delay *= 1.5
             else:
+                print(f"❌ [LLM Error] in {step_name}: {str(e)}")
                 raise e
-    # Final attempt
-    async with Agent(config=config) as agent:
-        response = await agent.chat(prompt)
-        return await response.structured_output()
 
 async def scan_single_portal(url: str, resume_path: str):
     """Scans and evaluates a single embassy job portal URL.
@@ -41,11 +87,19 @@ async def scan_single_portal(url: str, resume_path: str):
     print(f"🔎 Scanning Portal: {url}")
     print(f"==================================================")
     
+    # Pre-scrape raw text in python
+    print("🌐 Scraping portal content...")
+    scraped_text = scrape_kbri_portal(url)
+    
+    if not scraped_text or scraped_text.startswith("Error scraping portal"):
+        print(f"⚠️ Failed to scrape portal content: {scraped_text}")
+        return
+        
     # Step 1: Monitor Agent gathers job details
     print("🤖 Spawning Monitor Agent to extract job posting details...")
     job_details = await run_agent_step(
         monitor_config, 
-        f"Scrape and extract job details from this page: {url}", 
+        f"Analyze the following scraped text and extract job details:\n\n{scraped_text}", 
         "Monitor Agent"
     )
         
@@ -69,9 +123,9 @@ async def scan_single_portal(url: str, resume_path: str):
     # Read candidate resume
     resume_text = read_user_resume(resume_path)
     
-    # Introduce small delay to respect API Rate Limits (Free Tier)
-    print("⏳ Waiting to respect API rate limits...")
-    await asyncio.sleep(4)
+    # Introduce small delay to respect API Rate Limits if any
+    print("⏳ Waiting before next step...")
+    await asyncio.sleep(2)
     
     # Step 2: Matcher Agent evaluates candidates against requirements
     print("\n🤖 Spawning Matcher Agent to assess candidate fit...")
@@ -100,9 +154,9 @@ async def scan_single_portal(url: str, resume_path: str):
     if fit_score >= threshold:
         print(f"🌟 Suitable Match Found! (Fit score {fit_score}% >= threshold {threshold}%)")
         
-        # Introduce small delay to respect API Rate Limits (Free Tier)
-        print("⏳ Waiting to respect API rate limits...")
-        await asyncio.sleep(4)
+        # Introduce small delay to respect API Rate Limits if any
+        print("⏳ Waiting before next step...")
+        await asyncio.sleep(2)
         
         # Step 3: Drafter Agent drafts formal diplomatic cover letter
         print("🤖 Spawning Drafter Agent to write application email...")
@@ -182,6 +236,14 @@ async def main():
     search_keyword = sys.argv[1] if len(sys.argv) > 1 else "staf setempat"
     resume_path = sys.argv[2] if len(sys.argv) > 2 else "resume.txt"
     
+    # Handle the resume path search if default doesn't exist
+    if resume_path == "resume.txt" and not os.path.exists(resume_path):
+        # Scan current directory for files with "Resume" and ".pdf"
+        pdf_resumes = [f for f in os.listdir(".") if "resume" in f.lower() and f.endswith(".pdf")]
+        if pdf_resumes:
+            resume_path = pdf_resumes[0]
+            print(f"ℹ️ Found resume file: {resume_path}")
+            
     if not os.path.exists(resume_path):
         print(f"❌ Resume file not found at: {resume_path}")
         print("   Please create a resume or place it in the working directory.")
@@ -201,8 +263,8 @@ async def main():
     for i, url in enumerate(portals):
         try:
             if i > 0:
-                print("⏳ Waiting to respect API rate limits...")
-                await asyncio.sleep(6)
+                print("⏳ Waiting before next scan...")
+                await asyncio.sleep(3)
             await scan_single_portal(url, resume_path)
         except Exception as e:
             print(f"💥 Critical error scanning portal {url}: {str(e)}")
