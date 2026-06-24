@@ -3,15 +3,19 @@ import os
 import sys
 import json
 from openai import AsyncOpenAI
-from tools import (
+from src.tools import (
     read_user_resume, 
     search_active_postings, 
     send_local_alert, 
     send_notification_email, 
-    save_application_log,
     scrape_kbri_portal
 )
-from config import monitor_config, matcher_config, drafter_config
+from src.config import monitor_config, matcher_config, drafter_config
+from src.utils.logger import save_application_log
+from src.utils.env import load_env_variables
+
+# Load environment configurations
+load_env_variables()
 
 # Initialize the OpenAI compatible client
 api_key = os.getenv("LLM_API_KEY", "ollama")
@@ -272,6 +276,3 @@ async def main():
     print("\n==================================================")
     print("🏁 Scout Scanning Completed. Logs saved to applications_log.json.")
     print("==================================================")
-
-if __name__ == "__main__":
-    asyncio.run(main())

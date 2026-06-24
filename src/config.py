@@ -1,4 +1,4 @@
-from schemas import JobPosting, ResumeMatch, EmailDraft
+from src.schemas import JobPosting, ResumeMatch, EmailDraft
 
 # 1. The Monitor extracts structured job details including contact email from scraped page text
 monitor_config = {

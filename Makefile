@@ -57,7 +57,10 @@ ollama-install:
 	ollama pull qwen2.5
 
 run:
-	python3 orchestrator.py "$(KEYWORD)" "$(RESUME)"
+	python3 main.py "$(KEYWORD)" "$(RESUME)"
+
+test:
+	python3 -m unittest discover -s tests
 
 clean: smtp-down
 	rm -rf __pycache__
