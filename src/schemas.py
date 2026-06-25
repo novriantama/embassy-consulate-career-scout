@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 class JobPosting(BaseModel):
     embassy_name: str = Field(description="The name of the Indonesian Embassy or Consulate (e.g. 'KBRI Singapore', 'KJRI Sydney').")
     job_title: str = Field(description="The title of the job opening.")
-    is_embassy_local_staff: bool = Field(description="True if the job is for Local Staff (Staf Setempat), False otherwise.")
+    is_embassy_staff: bool = Field(description="True if the job is for Staff (Staf) or Pegawai (e.g. Staf Setempat, Pegawai), False otherwise.")
     requirements: list[str] = Field(description="List of key requirements/skills extracted from the job posting.")
     application_deadline: str = Field(description="The application deadline or timeline info.")
     contact_email: str = Field(default="", description="The recruitment email address or contact address to submit the resume/application to, if found on the page. If not found, leave as an empty string.")

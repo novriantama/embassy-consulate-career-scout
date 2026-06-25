@@ -27,6 +27,9 @@ client = AsyncOpenAI(
     base_url=base_url
 )
 
+# Cumulative token usage session state
+SESSION_USAGE = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
 async def run_agent_step(config, prompt, step_name):
     """Runs an agent step with structured output using Qwen via OpenAI compatible API.
     Retries on rate limits or API connection errors.
@@ -49,6 +52,12 @@ async def run_agent_step(config, prompt, step_name):
                     ],
                     response_format=response_schema
                 )
+                usage = response.usage
+                if usage:
+                    SESSION_USAGE["prompt_tokens"] += usage.prompt_tokens
+                    SESSION_USAGE["completion_tokens"] += usage.completion_tokens
+                    SESSION_USAGE["total_tokens"] += usage.total_tokens
+                    print(f"   [LLM Usage] Prompt: {usage.prompt_tokens} t | Completion: {usage.completion_tokens} t | Total: {usage.total_tokens} t")
                 parsed = response.choices[0].message.parsed
                 if parsed is not None:
                     return parsed.model_dump()
@@ -68,6 +77,12 @@ async def run_agent_step(config, prompt, step_name):
                     ],
                     response_format={"type": "json_object"}
                 )
+                usage = response.usage
+                if usage:
+                    SESSION_USAGE["prompt_tokens"] += usage.prompt_tokens
+                    SESSION_USAGE["completion_tokens"] += usage.completion_tokens
+                    SESSION_USAGE["total_tokens"] += usage.total_tokens
+                    print(f"   [LLM Usage] Prompt: {usage.prompt_tokens} t | Completion: {usage.completion_tokens} t | Total: {usage.total_tokens} t")
                 content = response.choices[0].message.content
                 parsed_json = json.loads(content)
                 validated = response_schema.model_validate(parsed_json)
@@ -114,11 +129,11 @@ async def scan_single_portal(url: str, resume_path: str):
     embassy_name = job_details.get("embassy_name", "Unknown Embassy")
     job_title = job_details.get("job_title", "Unknown Position")
     
-    if not job_details.get("is_embassy_local_staff"):
-        print(f"ℹ️ [{embassy_name}] Opening found for '{job_title}', but it is not a 'Local Staff' position. Skipping.")
+    if not job_details.get("is_embassy_staff"):
+        print(f"ℹ️ [{embassy_name}] Opening found for '{job_title}', but it is not a 'Staff' or 'Pegawai' position. Skipping.")
         return
         
-    print(f"✅ Active Local Staff job found!")
+    print(f"✅ Active Staff/Pegawai job found!")
     print(f"   Embassy:  {embassy_name}")
     print(f"   Position: {job_title}")
     print(f"   Deadline: {job_details.get('application_deadline', 'Not specified')}")
@@ -237,7 +252,7 @@ async def main():
     print("🚀 Starting Global Diplomatic Career Scout scans...")
     print("==================================================")
     
-    search_keyword = sys.argv[1] if len(sys.argv) > 1 else "staf setempat"
+    search_keyword = sys.argv[1] if len(sys.argv) > 1 else "staf"
     resume_path = sys.argv[2] if len(sys.argv) > 2 else "resume.txt"
     
     # Handle the resume path search if default doesn't exist
@@ -275,4 +290,8 @@ async def main():
             
     print("\n==================================================")
     print("🏁 Scout Scanning Completed. Logs saved to applications_log.json.")
+    print(f"📊 Cumulative Token Usage:")
+    print(f"   Prompt Tokens:     {SESSION_USAGE['prompt_tokens']:,}")
+    print(f"   Completion Tokens: {SESSION_USAGE['completion_tokens']:,}")
+    print(f"   Total Tokens:      {SESSION_USAGE['total_tokens']:,}")
     print("==================================================")

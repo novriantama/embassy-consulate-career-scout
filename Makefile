@@ -1,7 +1,7 @@
 .PHONY: help install run clean smtp-build smtp-up smtp-down smtp-logs
 
 # Default keyword and resume parameters (can be overridden on command line)
-KEYWORD ?= KBRI Singapore local staff karir
+KEYWORD ?= KBRI Singapore staff pegawai karir
 RESUME ?= resume.txt
 
 help:

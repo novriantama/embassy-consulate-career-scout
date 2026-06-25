@@ -17,7 +17,7 @@ class TestQwenOrchestrator(unittest.IsolatedAsyncioTestCase):
         mock_parsed = JobPosting(
             embassy_name="KBRI Singapore",
             job_title="Staf Setempat",
-            is_embassy_local_staff=True,
+            is_embassy_staff=True,
             requirements=["Degree in IT", "Fluent in English"],
             application_deadline="2026-12-31",
             contact_email="recruitment@kbri.sg"
@@ -43,7 +43,7 @@ class TestQwenOrchestrator(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result["embassy_name"], "KBRI Singapore")
         self.assertEqual(result["job_title"], "Staf Setempat")
-        self.assertTrue(result["is_embassy_local_staff"])
+        self.assertTrue(result["is_embassy_staff"])
         self.assertEqual(result["contact_email"], "recruitment@kbri.sg")
         
         # Ensure it was called with beta.chat.completions.parse

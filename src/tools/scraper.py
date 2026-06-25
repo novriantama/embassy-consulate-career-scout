@@ -68,7 +68,7 @@ CITIES_MAPPING = {
     "houston": {"web": "houston", "insta": ["kjrihouston"]}
 }
 
-def search_active_postings(keyword: str = "staf setempat") -> list[str]:
+def search_active_postings(keyword: str = "staf") -> list[str]:
     """Broadly searches the kemlu.go.id and instagram.com domains for active job openings/portals matching the keyword.
     """
     # 1. First, check if keyword requests specific cities

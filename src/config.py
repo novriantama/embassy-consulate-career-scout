@@ -4,7 +4,7 @@ from src.schemas import JobPosting, ResumeMatch, EmailDraft
 monitor_config = {
     "system_instructions": (
         "You are a strict data extraction agent. Analyze the provided scraped web page text. "
-        "Identify if there is an active 'Local Staff' (Staf Setempat) opening. "
+        "Identify if there is an active 'Staff' or 'Pegawai' (e.g. Staf Setempat, Pegawai) opening. "
         "Do not summarize or guess. Extract the embassy/consulate name (e.g., 'KBRI Singapore', "
         "'KJRI Sydney'), the job title, requirements, deadline, and the contact/application email "
         "address (if visible on the page). Return the exact JSON schema."
