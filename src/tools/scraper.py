@@ -78,8 +78,30 @@ def search_active_postings(keyword: str = "staf") -> list[str]:
         if city in keyword_lower or city.replace(" ", "") in keyword_lower:
             web_sub = CITIES_MAPPING.get(city, {}).get("web", city)
             targeted.append(f"https://kemlu.go.id/{web_sub}/id/pages/karir")
-            insta_handles = CITIES_MAPPING.get(city, {}).get("insta", [f"kbri.{city}", f"kbri{city}", f"indonesiain{city}"])
-            for handle in insta_handles:
+            
+            # Standardized Instagram handle formats: indonesiain... and inain...
+            handles = [f"indonesiain{city}", f"inain{city}"]
+            
+            # Shorthands and custom/historic mappings
+            if city == "kualalumpur":
+                handles.extend(["indonesiainkl", "inainkl"])
+            elif city == "singapore":
+                handles.extend(["indonesiainsg", "inainsg", "kbri.singapura", "kbri.singapore"])
+            elif city == "washington":
+                handles.extend(["indonesiainwashdc", "inainwashdc"])
+            elif city == "newyork":
+                handles.extend(["indonesiainny", "inainny"])
+                
+            custom_mapped = CITIES_MAPPING.get(city, {}).get("insta", [])
+            for h in custom_mapped:
+                if h not in handles:
+                    handles.append(h)
+                    
+            for default_h in [f"kbri.{city}", f"kbri{city}", f"kjri.{city}", f"kjri{city}"]:
+                if default_h not in handles:
+                    handles.append(default_h)
+                    
+            for handle in handles:
                 targeted.append(f"https://www.instagram.com/{handle}/")
                 
     if targeted:
@@ -96,8 +118,29 @@ def search_active_postings(keyword: str = "staf") -> list[str]:
     for city in top_cities:
         web_sub = CITIES_MAPPING.get(city, {}).get("web", city)
         fallback_portals.append(f"https://kemlu.go.id/{web_sub}/id/pages/karir")
-        insta_handle = CITIES_MAPPING.get(city, {}).get("insta", [f"kbri.{city}"])[0]
-        fallback_portals.append(f"https://www.instagram.com/{insta_handle}/")
+        
+        # Build handles including indonesiain, inain, kbri, and kjri variations
+        handles = [
+            f"indonesiain{city}",
+            f"inain{city}",
+            f"kbri.{city}",
+            f"kbri{city}",
+            f"kjri.{city}",
+            f"kjri{city}"
+        ]
+        
+        # Custom additions for default fallback list
+        if city == "singapore":
+            handles.extend(["kbri.singapura", "kbri.singapore"])
+        elif city == "kualalumpur":
+            handles.extend(["indonesiainkualalumpur", "kbrikualalumpur"])
+            
+        # De-duplicate handles and append to portals list
+        seen = set()
+        for handle in handles:
+            if handle not in seen:
+                seen.add(handle)
+                fallback_portals.append(f"https://www.instagram.com/{handle}/")
         
     try:
         # Search site:kemlu.go.id OR site:instagram.com for embassy/consulate openings

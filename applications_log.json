@@ -6,5 +6,109 @@
         "fit_score": 45,
         "status": "Scanned (Below threshold)",
         "url": "https://kemlu.go.id/kualalumpur/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:35:54.277283",
+        "embassy": "Portal Kemlu",
+        "job_title": "",
+        "fit_score": 85,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/singapore/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:36:26.909965",
+        "embassy": "Portal Kemlu",
+        "job_title": "",
+        "fit_score": 100,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/kualalumpur/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:37:27.098763",
+        "embassy": "Portal Kemlu",
+        "job_title": "",
+        "fit_score": 95,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/sydney/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:37:59.232613",
+        "embassy": "KBRI Indonesia",
+        "job_title": "",
+        "fit_score": 82,
+        "status": "Scanned (Below threshold)",
+        "url": "https://kemlu.go.id/tokyo/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:38:33.671595",
+        "embassy": "Portal Kemlu",
+        "job_title": "",
+        "fit_score": 93,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/seoul/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:39:12.184781",
+        "embassy": "Portal Kemlu",
+        "job_title": "",
+        "fit_score": 95,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/riyadh/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:39:46.726311",
+        "embassy": "Portal Kemlu",
+        "job_title": "Staff/Pegawai",
+        "fit_score": 95,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/jeddah/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:41:26.885933",
+        "embassy": "Portal Kemlu",
+        "job_title": "",
+        "fit_score": 95,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/perth/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:41:57.339241",
+        "embassy": "Not explicitly mentioned",
+        "job_title": "Not explicitly mentioned",
+        "fit_score": 40,
+        "status": "Scanned (Below threshold)",
+        "url": "https://kemlu.go.id/penang/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:42:57.360600",
+        "embassy": "Portal Kemlu",
+        "job_title": "",
+        "fit_score": 85,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/beijing/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:53:13.031464",
+        "embassy": "Portal Kemlu",
+        "job_title": "",
+        "fit_score": 89,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/singapore/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:53:48.753727",
+        "embassy": "Portal Kemlu",
+        "job_title": "",
+        "fit_score": 85,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/kualalumpur/id/pages/karir"
+    },
+    {
+        "timestamp": "2026-06-25T14:57:15.990527",
+        "embassy": "Portal Kemlu",
+        "job_title": "",
+        "fit_score": 95,
+        "status": "Matched (Draft saved)",
+        "url": "https://kemlu.go.id/singapore/id/pages/karir"
     }
 ]

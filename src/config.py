@@ -5,6 +5,9 @@ monitor_config = {
     "system_instructions": (
         "You are a strict data extraction agent. Analyze the provided scraped web page text. "
         "Identify if there is an active 'Staff' or 'Pegawai' (e.g. Staf Setempat, Pegawai) opening. "
+        "CRITICAL: If the page text is generic (e.g. only contains 'Portal Kemlu' or generic site menus), "
+        "empty, or does not contain a real, active job opening, you MUST set 'is_embassy_staff' to False "
+        "and leave all other fields blank or empty.\n"
         "Do not summarize or guess. Extract the embassy/consulate name (e.g., 'KBRI Singapore', "
         "'KJRI Sydney'), the job title, requirements, deadline, and the contact/application email "
         "address (if visible on the page). Return the exact JSON schema."

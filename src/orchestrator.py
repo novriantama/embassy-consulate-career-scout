@@ -110,8 +110,13 @@ async def scan_single_portal(url: str, resume_path: str):
     print("🌐 Scraping portal content...")
     scraped_text = scrape_kbri_portal(url)
     
-    if not scraped_text or scraped_text.startswith("Error scraping portal"):
+    if not scraped_text or scraped_text.startswith("Error"):
         print(f"⚠️ Failed to scrape portal content: {scraped_text}")
+        return
+        
+    # Skip generic/blank pages (less than 150 characters cannot contain a real job posting)
+    if len(scraped_text.strip()) < 150:
+        print(f"⚠️ Page content is too short to contain a job posting ({len(scraped_text.strip())} chars). Skipping.")
         return
         
     # Step 1: Monitor Agent gathers job details
@@ -170,6 +175,22 @@ async def scan_single_portal(url: str, resume_path: str):
     threshold = int(os.getenv("AUTO_APPLY_THRESHOLD", "85"))
     auto_apply_enabled = os.getenv("AUTO_APPLY_ENABLED", "False").lower() == "true"
     
+    # Construct base notification body for all found jobs
+    requirements_str = "\n".join(f"- {req}" for req in job_details.get("requirements", []))
+    notification_body = (
+        f"Hello,\n\n"
+        f"The Diplomatic Career Scout found an active job opening:\n\n"
+        f"Embassy/Consulate: {embassy_name}\n"
+        f"Position:          {job_title}\n"
+        f"Deadline:          {job_details.get('application_deadline', 'Not specified')}\n"
+        f"Link to job:       {url}\n\n"
+        f"Job Description / Requirements:\n"
+        f"{requirements_str}\n\n"
+        f"📊 Candidate Fit Assessment:\n"
+        f"Fit Score: {fit_score}/100\n"
+        f"Match Strengths: {', '.join(strengths)}\n"
+    )
+    
     if fit_score >= threshold:
         print(f"🌟 Suitable Match Found! (Fit score {fit_score}% >= threshold {threshold}%)")
         
@@ -188,6 +209,13 @@ async def scan_single_portal(url: str, resume_path: str):
             
         if not email_draft:
             print("⚠️ Drafter agent failed to draft cover email.")
+            notification_body += "\n⚠️ (Drafting agent failed to generate formal cover letter. Only scan alert is sent.)"
+            print("✉️ Sending alert notification email to you...")
+            send_notification_email(
+                subject=f"[Scout Found] {job_title} at {embassy_name} ({fit_score}% Fit)",
+                body=notification_body
+            )
+            save_application_log(job_title, embassy_name, "Matched (Drafter failed)", fit_score, url)
             return
             
         subject = email_draft.get("email_subject", f"Job Application: {job_title}")
@@ -206,20 +234,15 @@ async def scan_single_portal(url: str, resume_path: str):
         except Exception as e:
             print(f"⚠️ Could not write draft to Desktop: {str(e)}")
 
-        # 3. Send Notification Email to user
-        notification_body = (
-            f"Hello,\n\n"
-            f"The Diplomatic Career Scout found a suitable job posting:\n"
-            f"Embassy: {embassy_name}\n"
-            f"Position: {job_title}\n"
-            f"Fit Score: {fit_score}/100\n"
-            f"Match Strengths: {', '.join(strengths)}\n\n"
-            f"A draft email has been prepared and saved to your Desktop.\n"
-            f"Link to listing: {url}"
+        # Append details about draft to the notification body
+        notification_body += (
+            f"\n🌟 Suitable Match Found! (Fit score {fit_score}% >= threshold {threshold}%)\n"
+            f"A draft email has been prepared and saved to your Desktop:\n"
+            f"{desktop_save_path}\n"
         )
         print("✉️ Sending alert notification email to you...")
         send_notification_email(
-            subject=f"[Scout Match] {job_title} at {embassy_name}",
+            subject=f"[Scout Match] {job_title} at {embassy_name} ({fit_score}% Fit)",
             body=notification_body
         )
         
@@ -244,7 +267,13 @@ async def scan_single_portal(url: str, resume_path: str):
             save_application_log(job_title, embassy_name, "Matched (Draft saved)", fit_score, url)
             
     else:
-        print(f"❌ Candidate fit score ({fit_score}%) is below suitability threshold ({threshold}%). Skipping.")
+        print(f"❌ Candidate fit score ({fit_score}%) is below suitability threshold ({threshold}%). Skipping draft cover letter.")
+        notification_body += f"\n❌ Candidate fit score ({fit_score}%) is below suitability threshold ({threshold}%). No draft cover letter prepared."
+        print("✉️ Sending alert notification email to you...")
+        send_notification_email(
+            subject=f"[Scout Found] {job_title} at {embassy_name} ({fit_score}% Fit)",
+            body=notification_body
+        )
         save_application_log(job_title, embassy_name, "Scanned (Below threshold)", fit_score, url)
 
 async def main():
