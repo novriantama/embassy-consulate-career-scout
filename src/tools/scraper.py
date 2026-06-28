@@ -186,6 +186,13 @@ def fetch_instagram_post(shortcode: str, session_id: str) -> str:
     api_url = f"https://www.instagram.com/p/{shortcode}/?__a=1&__d=dis"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': f'https://www.instagram.com/p/{shortcode}/',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin'
     }
     if session_id:
         headers['Cookie'] = f'sessionid={session_id}'
@@ -224,8 +231,15 @@ def fetch_instagram_profile(username: str, session_id: str) -> str:
     """
     api_url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={username}"
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'X-IG-App-ID': '936619743392459'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'X-IG-App-ID': '936619743392459',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': f'https://www.instagram.com/{username}/',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin'
     }
     if session_id:
         headers['Cookie'] = f'sessionid={session_id}'
